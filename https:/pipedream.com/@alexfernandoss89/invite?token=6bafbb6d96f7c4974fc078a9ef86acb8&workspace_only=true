@@ -1,0 +1,109 @@
+AIRFLOW
+
+from airflow import DAG
+from airflow.decorators import dag, task
+import pandas as pd
+import pyodbc
+import datetime
+
+@dag
+def load_mysql_to_datalake(
+    dag_id="load_mysql_to_datalake",
+    schedule_interval=datetime.timedelta(days=1),
+    start_date=datetime.datetime(2020, 1, 1),
+    catchup=False,
+):
+
+    @task
+    def read_mysql_to_dataframe(**kwargs):
+        # Connect to MySQL and read data into a Pandas DataFrame
+        conn = pyodbc.connect(
+            "DRIVER={MySQL ODBC 8.0 ANSI Driver};"
+            "SERVER=<server_name>;"
+            "DATABASE=<database_name>;"
+            "UID=<username>;"
+            "PWD=<password>")
+        query = "SELECT * FROM <table_name>"
+        df = pd.read_sql(query, conn)
+        return df
+
+    @task
+    def write_dataframe_to_datalake(df, **kwargs):
+        # Write the Pandas DataFrame to Azure Data Lake
+        df.to_parquet('abfss://<data_lake_store_account>.azuredatalakestore.net/<path>/<filename>.parquet'')
+    
+    read_data = read_mysql_to_dataframe()
+    write_data = write_dataframe_to_datalake(read_data)
+
+load_mysql_to_datalake()
+
+----------------------------------------------------------------------------------------------
+SQL
+
+select count(*) as total_number_rows from table
+select distinct name as sensor_name from table
+select * from table where name = 'PPL340'
+select year, count(*) as total_number_rows from table where name = 'PPL340' group by year
+select year, avg(value) as avg_reading from table where name = 'PPL340' group by year
+select distinct year from table where name = 'PPL340' and value < (select avg(value) from table)
+
+-------------------------------------------------------------------------------------------------------
+Spark SQL
+
+list_queries = ["select count(*) as total_number_rows from table","select distinct name as sensor_name from table","select * from table where name = 'PPL340'","select year, count(*) as total_number_rows from table where name = 'PPL340' group by year","select year, avg(value) as avg_reading from table where name = 'PPL340' group by year","select distinct year from table where name = 'PPL340' and value < (select avg(value) from table)"]
+
+for query in list_queries:
+	spark.sql(query).show()
+  
+We might also create temporary views based on the list_queries and display the result in separated cells in the Databricks notebook which allows us to see all queries
+-----------------------------------------------------------------------------------------------------------
+Bash
+#!/bin/bash
+
+# Directory to be verified
+dir="/path/to/directory"
+
+# Current date
+now=$(date +%s)
+
+# Looping each file in the directory
+for file in "$dir"/*; do
+  # Verify if the file is really a file (not a directory or link)
+  if [ -f "$file" ]; then
+    # Retrieve the modification date of the file
+    file_time=$(stat -c %Y "$file")
+
+    # Calculate the difference in seconds between current date nad the file's modification date
+    time_diff=$((now - file_time))
+
+    # Verify if the difference is greater than 6 months(in seconds)
+    if [ $time_diff -gt 15552000]; then
+      # Exclude the file
+      rm "$file"
+    fi
+  fi
+done
+
+I don't know bash, I haven't worked and haven't studied
+------------------------------------------------------------------------------------------------------------
+DBT
+
+It's a command line tool do manipulate Data Warehouse, automatically generates documentation around descriptions, model dependencies, model SQL, sources and testes. I honestly haven't worked with it so far and I didn't know it  as well before this test
+
+-----------------------------------------------------------------------------------------------------------------
+Python
+#DASK is better than Pandas to handle medium sized data, it's medium point between Pandas and Spark because it automatically divide the data into smaller pieces and process them in parallel
+import dask.dataframe as dd
+import pyodbc
+
+# Connection
+conn = pyodbc.connect("connectionstring")
+
+# Reading the table with Dask
+df = dd.read_sql_table("tabela", conn, index_col="sensor", where="timestamp BETWEEN '2020-01-01 00:00:00' AND '2020-01-01 01:00:00'", npartitions=2)
+
+# Saving the file
+df.to_parquet("resultado.parquet")
+
+# Closing the connection
+conn.close()
