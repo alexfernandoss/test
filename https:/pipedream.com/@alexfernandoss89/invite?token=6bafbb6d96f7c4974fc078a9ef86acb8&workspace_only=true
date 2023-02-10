@@ -30,7 +30,7 @@ def load_mysql_to_datalake(
     @task
     def write_dataframe_to_datalake(df, **kwargs):
         # Write the Pandas DataFrame to Azure Data Lake
-        df.to_parquet('abfss://<data_lake_store_account>.azuredatalakestore.net/<path>/<filename>.parquet'')
+        df.to_parquet('abfss://<data_lake_store_account>.azuredatalakestore.net/Raw/<filename>.parquet')
     
     read_data = read_mysql_to_dataframe()
     write_data = write_dataframe_to_datalake(read_data)
@@ -103,7 +103,7 @@ conn = pyodbc.connect("connectionstring")
 df = dd.read_sql_table("tabela", conn, index_col="sensor", where="timestamp BETWEEN '2020-01-01 00:00:00' AND '2020-01-01 01:00:00'", npartitions=2)
 
 # Saving the file
-df.to_parquet("resultado.parquet")
+df.to_parquet("abfss://<data_lake_store_account>.azuredatalakestore.net/Raw/<filename>.parquet")
 
 # Closing the connection
 conn.close()
